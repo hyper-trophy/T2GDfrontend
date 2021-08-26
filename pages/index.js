@@ -153,7 +153,7 @@ export default function Home() {
   }, [conn])
 
   useEffect(() => {
-    setConn(io('ws://t2gd-prod.herokuapp.com'))
+    setConn(io('wss://t2gd-prod.herokuapp.com'))
   }, [])
 
   return (
