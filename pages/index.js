@@ -4,6 +4,7 @@ import styles from '../styles/Home.module.css'
 import React, { useState, useEffect, useRef } from 'react';
 import Loader from "react-loader-spinner";
 import { io } from 'socket.io-client'
+import axios from 'axios'
 
 const PROGRESS = {
   NOT_LOGGED_IN: "not logged in",
@@ -27,7 +28,7 @@ function ErrorPrompt({ errMsg, setError }) {
   )
 }
 
-function TwoStepAuthPrompt({text, set2StepAuth, conn}){
+function TwoStepAuthPrompt({ text, set2StepAuth, conn }) {
   return (
     <div className={styles.authPrompt}>
       <button
@@ -44,13 +45,116 @@ function TwoStepAuthPrompt({text, set2StepAuth, conn}){
   )
 }
 
-function MagentUriForm({ setProgress, conn }) {
+function SearchItem({ torrent, conn, setProgress, setSearcher }) {
+  const handleClick = _ => {
+    conn.emit('magnet', torrent.magnet)
+    setProgress(PROGRESS.LOADING_TORRENT)
+    setSearcher(false)
+  }
+  return (
+    <div className={styles.downloadItem} style={{ width: "100%" }}>
+      <p>{torrent?.title}</p>
+      <div>
+        <span style={{ float: "left", marginTop: "0.5rem" }}>{`size :${torrent.size}`}</span>
+        <button
+          className={styles.btn}
+          onClick={handleClick}
+          style={{ margin: "0.25rem 0 0", float: "right" }}>
+          Download
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function TorrentSearcher({ setSearcher, conn, setProgress }) {
+  const [results, setResults] = useState(undefined)
+  const [loading, setLoading] = useState(false)
+  const [noresults, setNoresults] = useState(false)
+  const inputRef = useRef(null)
+
+  const submitHandler = _ => {
+    (async () => {
+      setLoading(true)
+      console.log(inputRef?.current?.value)
+      const { data } = await axios.get(`api/search/${inputRef.current.value}`).catch(err => console.log)
+      console.log(data)
+      if (data.length === 0) {
+        setLoading(false)
+        setNoresults(true)
+        return;
+      }
+      setResults(data)
+      setLoading(false)
+    })()
+  }
+
+  return (
+    <div className={styles.torrentSearcher}>
+      <button
+        className={styles.btn}
+        style={{ position: 'absolute', top: "10px", right: "15px", fontSize: "10px", margin: "0" }}
+        onClick={() => setSearcher(false)}>
+        Close
+      </button>
+      <h1 style={{ margin: "1.5rem 0 0.5rem" }}>Search Torrents</h1>
+      <hr className={styles.pillLine} style={{ backgroundColor: "#0056a1", margin: "0 auto" }} />
+      <form onSubmit={e => {
+        e.preventDefault()
+        submitHandler()
+      }
+      }>
+        <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", margin: "0 1rem" }}>
+          <input
+            className={styles.searchInput}
+            type="text"
+            placeholder="Query"
+            ref={inputRef} />
+          <button
+            className={styles.btn}
+            style={{ margin: "1rem 1rem 0" }}
+            type="submit">
+            Search
+          </button>
+        </div>
+      </form>
+      {
+        loading &&
+        <div style={{ margin: "1rem" }}>
+          <Loader
+            type="Bars" // Bars Grid Oval
+            color="#0056a1"
+            height={100}
+            width={100}
+          />
+          <p>I know i am bit slow 🥲<br /> still trying my best...</p>
+        </div>
+      }
+      {
+        (!loading && results) &&
+        <div className={styles.resultsDiv}>
+          {results.map((result, idx) =>
+            <SearchItem torrent={result} conn={conn} setProgress={setProgress} key={idx} setSearcher={setSearcher} />
+          )}
+        </div>
+      }
+
+      {
+        noresults &&
+        <p className={styles.noRes}>No results found for {inputRef?.current?.value}</p>
+      }
+
+    </div>
+  )
+}
+
+function MagentUriForm({ setProgress, conn, setSearcher }) {
   const magnet = useRef(null)
   return (
     <div className={styles.inner}>
       <h1>Enter Magnet Link</h1>
       <hr className={styles.pillLine} />
-      <input style={{ marginBottom: "1rem" }} className={styles.creds} type="textarea" placeholder="Magnet URI" ref={magnet} /><br />
+      <input style={{ marginBottom: "1rem" }} className={styles.creds} type="text" placeholder="Magnet URI" ref={magnet} /><br />
       <a
         className={styles.link}
         href="https://nutbread.github.io/t2m/"
@@ -66,6 +170,15 @@ function MagentUriForm({ setProgress, conn }) {
           setProgress(PROGRESS.LOADING_TORRENT)
         }}>
         Download to Drive
+      </button>
+      <h2 style={{ margin: "0.35rem" }}> - OR - </h2>
+      <button
+        style={{ margin: "0.25rem 1rem 2rem" }}
+        className={styles.btn}
+        onClick={() => {
+          setSearcher(true)
+        }}>
+        Search torrents (NEW)
       </button>
     </div>
   )
@@ -90,7 +203,7 @@ function SignIn({ setProgress, conn }) {
   return (
     <div className={styles.inner}>
       <h1>Sign in</h1>
-      <p style={{margin: "0.1rem 0"}}>with your Google account</p>
+      <p style={{ margin: "0.1rem 0" }}>with your Google account</p>
       <hr className={styles.pillLine} />
       <input className={styles.creds} type="email" placeholder="Gmail ID" ref={gmail} /><br />
       <input className={styles.creds} type="password" placeholder="Password" ref={pass} /><br />
@@ -111,11 +224,11 @@ function SignIn({ setProgress, conn }) {
         }}>
         Sign in
       </button>
-      <div style={{textAlign: "left", fontSize: "12px", padding:"3rem 0"}}>
-      <p>NOTE :</p>
-      <p>{`1. Don't close the tab untill download Finishes`}</p>
-      <p>{`2. I don't store your passwords, but its recommended to create a temporary google account and use it here`}</p>
-      <p>{`3. This web app is under development, and my algorithm can break anytime. If google changes something, but i will keep giving support`}</p>
+      <div style={{ textAlign: "left", fontSize: "12px", padding: "3rem 0" }}>
+        <p>NOTE :</p>
+        <p>{`1. Don't close the tab untill download Finishes`}</p>
+        <p>{`2. I don't store your passwords, but its recommended to create a temporary google account and use it here`}</p>
+        <p>{`3. This web app is under development, and my algorithm can break anytime. If google changes something, but i will keep giving support`}</p>
       </div>
     </div>
   )
@@ -129,6 +242,7 @@ export default function Home() {
   const [downloadStatus, setDownloadStatus] = useState(undefined)
   const [error, setError] = useState(undefined)
   const [_2stepAuth, set2StepAuth] = useState(undefined)
+  const [searcher, setSearcher] = useState(false)
 
   useEffect(() => {
     if (conn) {
@@ -146,15 +260,14 @@ export default function Home() {
         setError(data)
       })
       conn.on('downloadDetails', data => {
-        console.log(data)
         setDownloadStatus(data)
       })
     }
   }, [conn])
 
-  useEffect(() => {
-    setConn(io('wss://t2gd-prod.herokuapp.com'))
-  }, [])
+  // useEffect(() => {
+  //   setConn(io('wss://t2gd-prod.herokuapp.com'))
+  // }, [])
 
   return (
     <div className={styles.container}>
@@ -162,8 +275,8 @@ export default function Home() {
         <h2 style={{ margin: "10px" }}>Torrent To Google Drive</h2>
       </div>
       <Head>
-        <title>Torrent To Goodgle Drive</title>
-        <meta httpEquiv="Content-Security-Policy" content="upgrade-insecure-requests"/>
+        <title>Torrent To Google Drive</title>
+        <meta httpEquiv="Content-Security-Policy" content="upgrade-insecure-requests" />
         <meta name="description" content="Download torrent files directly to your google drive" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
@@ -173,7 +286,7 @@ export default function Home() {
       }
       {
         _2stepAuth &&
-        <TwoStepAuthPrompt text={_2stepAuth} set2StepAuth={set2StepAuth} conn={conn}/>
+        <TwoStepAuthPrompt text={_2stepAuth} set2StepAuth={set2StepAuth} conn={conn} />
       }
       <div className={styles.main}>
         {
@@ -182,9 +295,18 @@ export default function Home() {
             [PROGRESS.DOWNLOAD_COMPLETE]: <SignIn setProgress={setProgress} conn={conn} />,
             [PROGRESS.LOADING]: <Progress setProgress={setProgress} text={message} />,
             [PROGRESS.LOADING_TORRENT]: <Progress setProgress={setProgress} text={message} />,
-            [PROGRESS.LOGGED_IN]: <MagentUriForm setProgress={setProgress} conn={conn} />
+            [PROGRESS.LOGGED_IN]: <MagentUriForm setProgress={setProgress} conn={conn} setSearcher={setSearcher} />
           }[progress]
         }
+        <p
+          style={{ position: "absolute", bottom: "0px", right: "20px", color: "white", fontSize: "10px" }}>
+          {`Made with ❣️ by Harsh suthar   .`} 
+          <a 
+          style={{color: "#0006a1", fontSize: "12px", textDecoration: "underline"}}
+          href="https://www.instagram.com/notreallyhaarsh/" rel="noreferrer" target="_blank">
+            Know me!
+          </a>
+        </p>
       </div>
       <div className={styles.downloads}>
         <h2>Downloads</h2>
@@ -217,6 +339,7 @@ export default function Home() {
           )
         }
       </div>
+      {searcher && <TorrentSearcher setSearcher={setSearcher} conn={conn} setProgress={setProgress} />}
     </div>
   )
 }
