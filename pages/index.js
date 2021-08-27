@@ -45,11 +45,22 @@ function TwoStepAuthPrompt({ text, set2StepAuth, conn }) {
   )
 }
 
-function SearchItem({ torrent, conn, setProgress, setSearcher }) {
-  const handleClick = _ => {
-    conn.emit('magnet', torrent.magnet)
+function SearchItem({ torrent, conn, setProgress, setSearcher, setError }) {
+  const handleClick = async _ => {
     setProgress(PROGRESS.LOADING_TORRENT)
     setSearcher(false)
+    if (torrent.magnet) {
+      conn.emit('magnet', torrent.magnet)
+    } else {
+      try {
+        const { data, status } = await axios.post('/api/magnet', { 'torrent': torrent })
+        conn.emit('magnet', data)
+      } catch (e) {
+        setError("cannot get the magnet uri " + e.message)
+        setProgress(PROGRESS.LOGGED_IN)
+        setSearcher(true)
+      }
+    }
   }
   return (
     <div className={styles.downloadItem} style={{ width: "100%" }}>
@@ -67,7 +78,7 @@ function SearchItem({ torrent, conn, setProgress, setSearcher }) {
   )
 }
 
-function TorrentSearcher({ setSearcher, conn, setProgress }) {
+function TorrentSearcher({ setSearcher, conn, setProgress, setError }) {
   const [results, setResults] = useState(undefined)
   const [loading, setLoading] = useState(false)
   const [noresults, setNoresults] = useState(false)
@@ -134,7 +145,7 @@ function TorrentSearcher({ setSearcher, conn, setProgress }) {
         (!loading && results) &&
         <div className={styles.resultsDiv}>
           {results.map((result, idx) =>
-            <SearchItem torrent={result} conn={conn} setProgress={setProgress} key={idx} setSearcher={setSearcher} />
+            <SearchItem torrent={result} conn={conn} setProgress={setProgress} key={idx} setSearcher={setSearcher} setError={setError} />
           )}
         </div>
       }
@@ -245,6 +256,7 @@ export default function Home() {
   const [searcher, setSearcher] = useState(false)
 
   useEffect(() => {
+
     if (conn) {
       conn.on('message', data => {
         setMessage(data)
@@ -300,10 +312,10 @@ export default function Home() {
         }
         <p
           style={{ position: "absolute", bottom: "0px", right: "20px", color: "white", fontSize: "10px" }}>
-          {`Made with ❣️ by Harsh suthar   .`} 
-          <a 
-          style={{color: "#0006a1", fontSize: "12px", textDecoration: "underline"}}
-          href="https://www.instagram.com/notreallyhaarsh/" rel="noreferrer" target="_blank">
+          {`Made with ❣️ by Harsh suthar   .`}
+          <a
+            style={{ color: "#0006a1", fontSize: "12px", textDecoration: "underline" }}
+            href="https://www.instagram.com/notreallyhaarsh/" rel="noreferrer" target="_blank">
             Know me!
           </a>
         </p>
@@ -339,7 +351,7 @@ export default function Home() {
           )
         }
       </div>
-      {searcher && <TorrentSearcher setSearcher={setSearcher} conn={conn} setProgress={setProgress} />}
+      {searcher && <TorrentSearcher setSearcher={setSearcher} conn={conn} setProgress={setProgress} setError={setError} />}
     </div>
   )
 }
