@@ -265,9 +265,9 @@ export default function Home() {
     }
   }, [conn])
 
-  // useEffect(() => {
-  //   setConn(io('wss://t2gd-prod.herokuapp.com'))
-  // }, [])
+  useEffect(() => {
+    setConn(io('wss://t2gd-prod.herokuapp.com'))
+  }, [])
 
   return (
     <div className={styles.container}>
