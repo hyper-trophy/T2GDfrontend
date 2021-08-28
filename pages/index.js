@@ -54,6 +54,7 @@ function SearchItem({ torrent, conn, setProgress, setSearcher, setError }) {
     } else {
       try {
         const { data, status } = await axios.post('/api/magnet', { 'torrent': torrent })
+        console.log(data)
         conn.emit('magnet', data)
       } catch (e) {
         setError("cannot get the magnet uri " + e.message)
