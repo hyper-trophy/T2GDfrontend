@@ -53,7 +53,7 @@ function SearchItem({ torrent, conn, setProgress, setSearcher, setError }) {
       conn.emit('magnet', torrent.magnet)
     } else {
       try {
-        const { data, status } = await axios.post('/api/magnet', { 'torrent': torrent })
+        const { data, status } = await axios.post('https://t2gd-prod.herokuapp.com/torrent', { 'torrent': torrent })
         console.log(data)
         conn.emit('magnet', data)
       } catch (e) {
@@ -89,7 +89,7 @@ function TorrentSearcher({ setSearcher, conn, setProgress, setError }) {
     (async () => {
       setLoading(true)
       console.log(inputRef?.current?.value)
-      const { data } = await axios.get(`api/search/${inputRef.current.value}`).catch(err => console.log)
+      const { data } = await axios.get(`https://t2gd-prod.herokuapp.com/search/${inputRef.current.value}`).catch(err => console.log)
       console.log(data)
       if (data.length === 0) {
         setLoading(false)
@@ -237,10 +237,10 @@ function SignIn({ setProgress, conn }) {
         Sign in
       </button>
       <div style={{ textAlign: "left", fontSize: "12px", padding: "3rem 0" }}>
-        <p>NOTE :</p>
-        <p>{`1. Don't close the tab untill download Finishes`}</p>
-        <p>{`2. I don't store your passwords, but its recommended to create a temporary google account and use it here`}</p>
-        <p>{`3. This web app is under development, and my algorithm can break anytime. If google changes something, but i will keep giving support`}</p>
+        <p style={{margin: "2px"}}>NOTE :</p>
+        <p style={{margin: "2px"}}>{`1. Don't close the tab untill download Finishes`}</p>
+        <p style={{margin: "2px"}}>{`2. I don't store your passwords, but its recommended to create a temporary google account and use it here`}</p>
+        <p style={{margin: "2px"}}>{`3. This web app is under development, and my algorithm can break anytime. If google changes something, but i will keep giving support`}</p>
       </div>
     </div>
   )
@@ -280,6 +280,7 @@ export default function Home() {
 
   useEffect(() => {
     setConn(io('wss://t2gd-prod.herokuapp.com'))
+    // setConn(io('ws://localhost:8080'))
   }, [])
 
   return (
